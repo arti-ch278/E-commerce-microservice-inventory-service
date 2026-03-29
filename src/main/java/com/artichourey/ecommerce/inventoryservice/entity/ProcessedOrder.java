@@ -17,14 +17,21 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name="processed_order",uniqueConstraints=@UniqueConstraint(columnNames="orderId"))
+@Table(name = "processed_order", uniqueConstraints = @UniqueConstraint(columnNames = "orderId"))
 public class ProcessedOrder {
 
-@Id
-@GeneratedValue(strategy=GenerationType.IDENTITY)
-private Long id;
-@Column(nullable=false,unique=true)
-private String orderId;
-private LocalDateTime processedAt;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
+    @Column(nullable = false, unique = true)
+    private String orderId;
+
+    private LocalDateTime processedAt;
+
+    // Convenience constructor for saving easily
+    public ProcessedOrder(String orderId, LocalDateTime processedAt) {
+        this.orderId = orderId;
+        this.processedAt = processedAt;
+    }
 }
