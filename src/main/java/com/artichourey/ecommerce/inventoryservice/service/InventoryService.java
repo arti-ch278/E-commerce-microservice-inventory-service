@@ -1,5 +1,6 @@
 package com.artichourey.ecommerce.inventoryservice.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -8,11 +9,14 @@ import com.artichourey.ecommerce.events.StockReservedEvent;
 import com.artichourey.ecommerce.inventoryservice.dto.InventoryRequest;
 import com.artichourey.ecommerce.inventoryservice.dto.InventoryResponse;
 import com.artichourey.ecommerce.inventoryservice.entity.Inventory;
+import com.artichourey.ecommerce.inventoryservice.entity.ProcessedOrder;
 import com.artichourey.ecommerce.inventoryservice.exception.InventoryNotFoundException;
 import com.artichourey.ecommerce.inventoryservice.exception.OutOfStockException;
 import com.artichourey.ecommerce.inventoryservice.mapper.InventoryMapper;
 import com.artichourey.ecommerce.inventoryservice.producer.InventoryEventProducer;
 import com.artichourey.ecommerce.inventoryservice.repository.InventoryRepository;
+import com.artichourey.ecommerce.inventoryservice.repository.ProcessedOrderRepository;
+
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +28,7 @@ public class InventoryService {
 	
     private final InventoryRepository inventoryRepository;
     private final InventoryMapper inventoryMapper;
+    private final ProcessedOrderRepository processedOrderRepository;
 
     private final InventoryEventProducer inventoryEventProducer;
 
@@ -53,6 +58,10 @@ public class InventoryService {
     @Transactional
     public void reserveStock(String orderId, String skuCode, int quantity) {
         log.info("Reserving {} units of SKU {} for order {}", quantity, skuCode, orderId);
+        if (processedOrderRepository.existsByOrderId(orderId)) {
+            log.warn("Order already processed: {}", orderId);
+            return;
+        }
 
         Inventory inventory = inventoryRepository.findBySkuCode(skuCode)
                 .orElseThrow(() -> new InventoryNotFoundException("Inventory not found for SKU: " + skuCode));
@@ -68,8 +77,10 @@ public class InventoryService {
         // Update reservedOrders map
         inventory.getReservedOrders().put(orderId, quantity);
         inventoryRepository.save(inventory);
+        processedOrderRepository.save(new ProcessedOrder(orderId, LocalDateTime.now()));
 
         log.info("Stock reserved successfully for order {}. SKU={}, reservedQuantity={}", orderId, skuCode, quantity);
+        
         inventoryEventProducer.sendStockReserved(new StockReservedEvent(orderId, skuCode, quantity, skuCode));
     }
 
