@@ -6,7 +6,6 @@ import com.artichourey.ecommerce.inventoryservice.entity.ProcessedOrder;
 
 public interface ProcessedOrderRepository extends JpaRepository<ProcessedOrder,Long> {
 
-	
 	boolean existsByOrderId(String orderId);
 	
 }
