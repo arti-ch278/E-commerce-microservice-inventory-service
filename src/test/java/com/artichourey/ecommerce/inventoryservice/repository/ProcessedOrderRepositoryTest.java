@@ -17,13 +17,8 @@ class ProcessedOrderRepositoryTest {
     private ProcessedOrderRepository repository;
 
     @Test
-    void existsByOrderId_ShouldReturnTrue() {
-
-        ProcessedOrder order = new ProcessedOrder();
-        order.setOrderId("ORD123");
-        order.setProcessedAt(LocalDateTime.now());
-
-        repository.save(order);
+    void testExistsByOrderId() {
+        repository.save(new ProcessedOrder("ORD123", LocalDateTime.now()));
 
         boolean exists = repository.existsByOrderId("ORD123");
 
