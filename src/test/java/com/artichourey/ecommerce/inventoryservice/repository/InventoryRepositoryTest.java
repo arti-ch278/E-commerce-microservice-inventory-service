@@ -12,24 +12,22 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import com.artichourey.ecommerce.inventoryservice.entity.Inventory;
 
 @DataJpaTest
-public class InventoryRepositoryTest {
-	
-	@Autowired
+class InventoryRepositoryTest {
+
+    @Autowired
     private InventoryRepository inventoryRepository;
 
     @Test
-    void findBySkuCode_ShouldReturnInventory() {
-
-        Inventory inventory =
-                new Inventory(null, "SKU123", 10);
+    void testFindBySkuCode() {
+        Inventory inventory = new Inventory();
+        inventory.setSkuCode("SKU123");
+        inventory.setAvailableQuantity(10);
 
         inventoryRepository.save(inventory);
 
-        Optional<Inventory> result =
-                inventoryRepository.findBySkuCode("SKU123");
+        Optional<Inventory> result = inventoryRepository.findBySkuCode("SKU123");
 
         assertTrue(result.isPresent());
-        assertEquals(10, result.get().getQuantity());
+        assertEquals(10, result.get().getAvailableQuantity());
     }
-
 }
