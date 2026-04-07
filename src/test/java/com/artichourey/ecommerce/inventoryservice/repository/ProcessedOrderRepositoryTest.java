@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 import com.artichourey.ecommerce.inventoryservice.entity.ProcessedOrder;
+import com.artichourey.ecommerce.inventoryservice.enums.OrderInventoryStatus;
 
 @DataJpaTest
 class ProcessedOrderRepositoryTest {
@@ -18,7 +19,7 @@ class ProcessedOrderRepositoryTest {
 
     @Test
     void testExistsByOrderId() {
-        repository.save(new ProcessedOrder("ORD123", LocalDateTime.now()));
+        repository.save(new ProcessedOrder("ORD123", LocalDateTime.now(), OrderInventoryStatus.COMMITTED));
 
         boolean exists = repository.existsByOrderId("ORD123");
 
