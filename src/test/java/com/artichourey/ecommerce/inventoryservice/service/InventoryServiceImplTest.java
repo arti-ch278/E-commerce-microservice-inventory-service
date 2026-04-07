@@ -5,10 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +24,8 @@ import org.mockito.Mock;
 
 import com.artichourey.ecommerce.inventoryservice.dto.InventoryResponse;
 import com.artichourey.ecommerce.inventoryservice.entity.Inventory;
+import com.artichourey.ecommerce.inventoryservice.entity.ProcessedOrder;
+import com.artichourey.ecommerce.inventoryservice.enums.OrderInventoryStatus;
 import com.artichourey.ecommerce.inventoryservice.exception.OutOfStockException;
 import com.artichourey.ecommerce.inventoryservice.mapper.InventoryMapper;
 import com.artichourey.ecommerce.inventoryservice.producer.InventoryEventProducer;
@@ -67,11 +72,19 @@ class InventoryServiceImplTest {
         assertTrue(response.isInStock());
     }
 
+ // SUCCESS CASE
     @Test
     void testReserveStock_Success() {
 
-        when(processedOrderRepository.existsByOrderId("ORD1")).thenReturn(false);
-        when(inventoryRepository.findBySkuCode("SKU123")).thenReturn(Optional.of(inventory));
+        when(processedOrderRepository.existsByOrderIdAndStatus(
+                "ORD1", OrderInventoryStatus.RESERVED))
+                .thenReturn(false);
+
+        when(inventoryRepository.reserveStockAtomic("SKU123", 5))
+                .thenReturn(1);
+
+        when(inventoryRepository.findBySkuCodeWithLock("SKU123"))
+                .thenReturn(Optional.of(inventory));
 
         inventoryService.reserveStock("ORD1", "SKU123", 5);
 
@@ -82,24 +95,31 @@ class InventoryServiceImplTest {
         verify(inventoryEventProducer).sendStockReserved(any());
     }
 
+    // ALREADY PROCESSED
     @Test
     void testReserveStock_AlreadyProcessed() {
 
-        when(processedOrderRepository.existsByOrderId("ORD1")).thenReturn(true);
+        when(processedOrderRepository.existsByOrderIdAndStatus(
+                "ORD1", OrderInventoryStatus.RESERVED))
+                .thenReturn(true);
 
         inventoryService.reserveStock("ORD1", "SKU123", 5);
 
-        verify(inventoryRepository, times(0)).save(any());
-        verify(inventoryEventProducer, times(0)).sendStockReserved(any());
+        verify(inventoryRepository, never()).reserveStockAtomic(any(), anyInt());
+        verify(inventoryRepository, never()).save(any());
+        verify(inventoryEventProducer, never()).sendStockReserved(any());
     }
 
+    // INSUFFICIENT STOCK
     @Test
     void testReserveStock_InsufficientStock() {
 
-        inventory.setAvailableQuantity(2);
+        when(processedOrderRepository.existsByOrderIdAndStatus(
+                "ORD1", OrderInventoryStatus.RESERVED))
+                .thenReturn(false);
 
-        when(processedOrderRepository.existsByOrderId("ORD1")).thenReturn(false);
-        when(inventoryRepository.findBySkuCode("SKU123")).thenReturn(Optional.of(inventory));
+        when(inventoryRepository.reserveStockAtomic("SKU123", 5))
+                .thenReturn(0); // simulate failure
 
         assertThrows(OutOfStockException.class,
                 () -> inventoryService.reserveStock("ORD1", "SKU123", 5));
@@ -107,24 +127,41 @@ class InventoryServiceImplTest {
         verify(inventoryEventProducer).sendStockFailed(any());
     }
 
+    // COMMIT STOCK
     @Test
     void testCommitStock() {
 
         inventory.getReservedOrders().put("ORD1", 5);
+
+        ProcessedOrder processedOrder =
+                new ProcessedOrder("ORD1", LocalDateTime.now(), OrderInventoryStatus.RESERVED);
+
+        when(processedOrderRepository.findByOrderId("ORD1"))
+                .thenReturn(Optional.of(processedOrder));
 
         when(inventoryRepository.findByReservedOrderId("ORD1"))
                 .thenReturn(List.of(inventory));
 
         inventoryService.commitStock("ORD1");
 
-        assertEquals(5, inventory.getAvailableQuantity());
         assertFalse(inventory.getReservedOrders().containsKey("ORD1"));
+
+        verify(inventoryRepository).save(inventory);
+        verify(processedOrderRepository).save(processedOrder);
     }
 
+    // ROLLBACK STOCK
     @Test
     void testRollbackStock() {
 
+        inventory.setAvailableQuantity(10);
         inventory.getReservedOrders().put("ORD1", 5);
+
+        ProcessedOrder processedOrder =
+                new ProcessedOrder("ORD1", LocalDateTime.now(), OrderInventoryStatus.RESERVED);
+
+        when(processedOrderRepository.findByOrderId("ORD1"))
+                .thenReturn(Optional.of(processedOrder));
 
         when(inventoryRepository.findByReservedOrderId("ORD1"))
                 .thenReturn(List.of(inventory));
@@ -132,5 +169,9 @@ class InventoryServiceImplTest {
         inventoryService.rollbackStock("ORD1");
 
         assertFalse(inventory.getReservedOrders().containsKey("ORD1"));
+        assertEquals(15, inventory.getAvailableQuantity()); // restored
+
+        verify(inventoryRepository).save(inventory);
+        verify(processedOrderRepository).save(processedOrder);
     }
 }
