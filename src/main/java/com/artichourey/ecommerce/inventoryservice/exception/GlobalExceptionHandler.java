@@ -25,6 +25,18 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
     }
+    
+    @ExceptionHandler(OutOfStockException.class)
+    public ResponseEntity<Object> handleOutOfStockException(OutOfStockException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.NOT_FOUND.value());
+        body.put("error", "Out Of Stock");
+        body.put("message", ex.getMessage());
+
+        return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
+    }
+
 
     // Handle validation errors (@Valid / @Validated)
     @ExceptionHandler(MethodArgumentNotValidException.class)
