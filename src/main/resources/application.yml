@@ -1,6 +1,13 @@
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+
+
 spring:
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BROKER:kafka:9092}
     consumer:
       group-id: inventory-group
       auto-offset-reset: earliest
@@ -10,7 +17,10 @@ spring:
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
         spring.json.trusted.packages: com.artichourey.ecommerce.events
         spring.json.use.type.headers: true
-      
+ 
+  zipkin:
+    base-url: ${ZIPKIN_URL:http://localhost:9411}
+    enabled: true     
 
 springdoc:
   api-docs:
@@ -27,9 +37,7 @@ management:
     sampling:
       probability: 1.0
 
-  zipkin:
-    base-url: http://localhost:9411
-    enabled: true
-logging:
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{traceId},%X{spanId}] %-5level %logger - %msg%n"
+ 
+#logging:
+  #pattern:
+    #console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{traceId},%X{spanId}] %-5level %logger - %msg%n"
