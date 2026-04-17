@@ -18,10 +18,7 @@ spring:
         spring.json.trusted.packages: "com.artichourey.ecommerce.events"
         spring.json.use.type.headers: true
  
-  zipkin:
-    base-url: ${ZIPKIN_URL:http://localhost:9411}
-    enabled: true     
-
+  
 springdoc:
   api-docs:
     enabled: true
@@ -36,6 +33,9 @@ management:
   tracing:
     sampling:
       probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_URL:http://zipkin:9411/api/v2/spans}
 
  
 #logging:
